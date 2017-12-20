@@ -7,8 +7,8 @@ class Trade:
         self.best_buy_from_me = 0.0
         self.best_sell_to_me = 0.0
 
-        self.last_buy = 91.820
-        self.last_sell = 0
+        self.last_buy = 0.0
+        self.last_sell = 0.0
         self.is_need_to_buy = False
         self.is_need_to_sell = True
 
@@ -41,26 +41,21 @@ class Trade:
         print('xrp_available: ' + xrp_asset['onhand_amount'])
 
     def test(self):
-        sell_to_me_change = 0.0
-        buy_from_me_change = 0.0
+        buy_from_me_change = (self.best_buy_from_me - self.last_buy) / self.last_buy
+        sell_to_me_change = (self.best_sell_to_me - self.last_sell) / self.last_sell
 
-        if self.last_buy != 0:
-            buy_from_me_change = (self.best_buy_from_me - self.last_buy) / self.last_buy
-        if self.last_sell != 0:
-            sell_to_me_change = (self.best_sell_to_me - self.last_sell) / self.last_sell
-
-        if self.is_need_to_buy and sell_to_me_change <= -0.015:
-            self.jpy_available += self.best_buy_from_me * self.xrp_available
-            self.xrp_available = 0.0
-            self.last_sell = self.best_buy_from_me
-            self.is_need_to_buy = True
-            self.is_need_to_sell = False
-        if self.is_need_to_sell and buy_from_me_change >= 0.015:
+        if self.is_need_to_buy and sell_to_me_change <= -0.01:
             self.xrp_available += self.jpy_available / self.best_sell_to_me
             self.jpy_available = 0.0
             self.last_buy = self.best_sell_to_me
             self.is_need_to_buy = False
             self.is_need_to_sell = True
+        if self.is_need_to_sell and buy_from_me_change >= 0.01:
+            self.jpy_available += self.best_buy_from_me * self.xrp_available
+            self.xrp_available = 0.0
+            self.last_sell = self.best_buy_from_me
+            self.is_need_to_buy = True
+            self.is_need_to_sell = False
 
         print('---- test ----')
         print('last_buy:  ' + str(self.last_buy))

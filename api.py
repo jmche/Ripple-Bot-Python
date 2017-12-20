@@ -6,7 +6,7 @@ from pubnub.pnconfiguration import PNConfiguration
 from pubnub.pubnub import PubNub
 
 
-class BitBankApi:
+class Client:
 
     def __init__(self, api_key, api_secret, subscribe_key, channel):
         self._api_key = api_key
@@ -56,6 +56,10 @@ class BitBankSubscribeCallback(SubscribeCallback):
 
         self._trade.best_buy_from_me = float(best_buy)
         self._trade.best_sell_to_me = float(best_sell)
+        if self._trade.last_buy == 0 and self._trade.last_sell == 0:
+            self._trade.last_buy = float(best_sell)
+            self._trade.last_sell = float(best_buy)
+
         self._trade.execute()
 
     def presence(self, pubnub, presence):

@@ -1,4 +1,4 @@
-from api import BitBankApi
+from api import Client
 
 if __name__ == '__main__':
     # Pubhub api info
@@ -11,5 +11,5 @@ if __name__ == '__main__':
     api_secret = str(lines[1])
 
     # Start trade
-    api = BitBankApi(api_key, api_secret, subscribe_key, channel)
-    api.start()
+    client = Client(api_key, api_secret, subscribe_key, channel)
+    client.start()
