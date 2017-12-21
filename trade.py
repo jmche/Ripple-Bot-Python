@@ -46,7 +46,7 @@ class Trade:
                 self.last_sell_for_me = xrp_last_value
             print('[last_sell_for_me]: %.3f' % self.last_sell_for_me)
             print('[best_sell_to_me]:  %.3f' % self.best_sell_to_me)
-            print('[change]: .3%d' % sell_to_me_change)
+            print('[change]: {percent:.3%}'.format(percent=sell_to_me_change))
         if self.mode is Mode.SELL:
             if buy_from_me_change >= 0.01:
                 self.jpy_available += self.xrp_available * self.best_buy_from_me
