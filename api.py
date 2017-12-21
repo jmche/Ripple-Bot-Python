@@ -9,28 +9,28 @@ from pubnub.pubnub import PubNub
 class Client:
 
     def __init__(self, api_key, api_secret, subscribe_key, channel):
-        self._api_key = api_key
-        self._api_secret = api_secret
-        self._subscribe_key = subscribe_key
-        self._channel = channel
+        self.api_key = api_key
+        self.api_secret = api_secret
+        self.subscribe_key = subscribe_key
+        self.channel = channel
 
     def start(self):
         # Bitbank api
         public_api = python_bitbankcc.public()
-        private_api = python_bitbankcc.private(self._api_key, self._api_secret)
+        private_api = python_bitbankcc.private(self.api_key, self.api_secret)
 
         # Pubnub api
         config = PNConfiguration()
-        config.subscribe_key = self._subscribe_key
+        config.subscribe_key = self.subscribe_key
         pubhub = PubNub(config)
         pubhub.add_listener(BitBankSubscribeCallback(public_api, private_api))
-        pubhub.subscribe().channels(self._channel).execute()
+        pubhub.subscribe().channels(self.channel).execute()
 
 
 class BitBankSubscribeCallback(SubscribeCallback):
 
     def __init__(self, public_api, private_api):
-        self._trade = Trade(public_api, private_api)
+        self.trade = Trade(public_api, private_api)
 
     def status(self, pubnub, status):
         if status.category == PNStatusCategory.PNUnexpectedDisconnectCategory:
@@ -54,13 +54,8 @@ class BitBankSubscribeCallback(SubscribeCallback):
         best_buy = message.message['data']['buy']
         best_sell = message.message['data']['sell']
 
-        self._trade.best_buy_from_me = float(best_buy)
-        self._trade.best_sell_to_me = float(best_sell)
-        if self._trade.last_buy == 0 and self._trade.last_sell == 0:
-            self._trade.last_buy = float(best_sell)
-            self._trade.last_sell = float(best_buy)
-
-        self._trade.execute()
+        self.trade.update(float(best_buy), float(best_sell))
+        self.trade.execute()
 
     def presence(self, pubnub, presence):
         pass
