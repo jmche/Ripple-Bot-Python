@@ -48,7 +48,7 @@ class Trade:
             elif buy_from_me_change >= 0.01 and xrp_sell > 1:
                 self.jpy_available += xrp_sell * self.best_buy_from_me
                 self.xrp_available -= xrp_sell
-                self.last_sell_for_me = xrp_last_value
+                self.last_sell_for_me = self.best_buy_from_me
             print('[last_sell_for_me]: %.3f' % self.last_sell_for_me)
             print('[best_sell_to_me]:  %.3f' % self.best_sell_to_me)
             print('[change]: {percent:.3%}'.format(percent=sell_to_me_change))
@@ -61,7 +61,7 @@ class Trade:
             elif sell_to_me_change <= -0.01 and xrp_buy > 1:
                 self.xrp_available += xrp_buy
                 self.jpy_available -= xrp_buy * self.best_sell_to_me
-                self.last_buy_for_me = xrp_last_value
+                self.last_buy_for_me = self.best_sell_to_me
             print('[last_buy_for_me]:  %.3f' % self.last_buy_for_me)
             print('[best_buy_from_me]: %.3f' % self.best_buy_from_me)
             print('[change]: {percent:.3%}'.format(percent=buy_from_me_change))
