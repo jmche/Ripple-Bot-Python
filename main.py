@@ -1,15 +1,36 @@
-from api import Client
+import time
+
+from client import Client
+from trade import Mode, Trade
 
 if __name__ == '__main__':
-    # Pubhub api info
-    subscribe_key = 'sub-c-e12e9174-dd60-11e6-806b-02ee2ddab7fe'
-    channel = ['ticker_xrp_jpy']
-
-    # Bitbank api info
+    # Bitbank api
     lines = open('api.txt').read().split('\n')
     api_key = str(lines[0])
     api_secret = str(lines[1])
+    client = Client(api_key, api_secret)
+
+    # Trading setting
+    best_buy = client.get_best_buy()
+    best_sell = client.get_best_sell()
+    xrp_available = client.get_xrp_available()
+    jpy_available = client.get_jpy_available()
+    xrp_price = client.get_xrp_price()
+    mode = None
+    if jpy_available >= xrp_available * xrp_price:
+        mode = Mode.BUY
+    else:
+        mode = Mode.SELL
+    trade = Trade(client, best_sell, best_buy, mode)
 
     # Start trade
-    client = Client(api_key, api_secret, subscribe_key, channel)
-    client.start()
+    while True:
+        # Get market price
+        best_buy = client.get_best_buy()
+        best_sell = client.get_best_sell()
+
+        # Trade by market price
+        trade.execute(best_buy, best_sell)
+
+        # Sleep for one second
+        time.sleep(1)
