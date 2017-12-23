@@ -9,6 +9,7 @@ from pubnub.pubnub import PubNub
 class Client:
 
     def __init__(self, api_key, api_secret, subscribe_key, channel):
+        # Setting
         self.api_key = api_key
         self.api_secret = api_secret
         self.subscribe_key = subscribe_key
@@ -51,11 +52,12 @@ class BitBankSubscribeCallback(SubscribeCallback):
             pass
 
     def message(self, pubnub, message):
+        # Get market price
         best_buy = message.message['data']['buy']
         best_sell = message.message['data']['sell']
 
-        self.trade.update(float(best_buy), float(best_sell))
-        self.trade.execute()
+        # Execute by price
+        self.trade.execute(float(best_buy), float(best_sell))
 
     def presence(self, pubnub, presence):
         pass
