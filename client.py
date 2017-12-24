@@ -48,9 +48,24 @@ class Client:
         else:
             return orders[0]
 
+    def get_last_buy_price(self):
+        trades = self.private_api.get_trade_history(self.PAIR, 10)['trades']
+        for trade in trades:
+            if trade['side'] == 'buy':
+                return float(trade['price'])
+
+    def get_last_sell_price(self):
+        trades = self.private_api.get_trade_history(self.PAIR, 10)['trades']
+        for trade in trades:
+            if trade['side'] == 'sell':
+                return float(trade['price'])
+
     def cancel_all_orders(self):
         orders = self.private_api.get_active_orders(self.PAIR)['orders']
-        order_ids = []
-        for order in orders:
-            order_ids.append(order['order_id'])
-        self.private_api.cancel_orders(self.PAIR, order_ids)
+        if len(orders) == 0:
+            return
+        else:
+            order_ids = []
+            for order in orders:
+                order_ids.append(order['order_id'])
+            self.private_api.cancel_orders(self.PAIR, order_ids)

@@ -28,17 +28,13 @@ class Trade:
 
         # Setting
         self.MODE = mode
-        self.WAITING = False
+        self.IS_DONE = False
         self.TRADE_PERCENT = 0.4
         self.MIN_PRICE_CHANGE = 0.01
         self.MIN_TRADE_AMOUNT = 1
         self.MAX_WAIT_TIMES = 5
 
     def execute(self, best_buy_from_me, best_sell_to_me):
-        # Wait for trading
-        if self.WAITING is True:
-            return
-
         # Update info
         self.best_buy_from_me = best_buy_from_me
         self.best_sell_to_me = best_sell_to_me
@@ -60,63 +56,63 @@ class Trade:
         xrp_buy = (self.TRADE_PERCENT * self.jpy_available) / self.best_sell_to_me
         xrp_sell = self.TRADE_PERCENT * self.xrp_available
 
-        # Create new order buy trade mode
-        if self.MODE is Mode.BUY:
-            if sell_to_me_change <= -self.MIN_PRICE_CHANGE and xrp_buy > self.MIN_TRADE_AMOUNT:
-                self.order(self.best_sell_to_me, xrp_buy, True)
-            elif buy_from_me_change >= self.MIN_PRICE_CHANGE and xrp_sell > self.MIN_TRADE_AMOUNT:
-                self.order(self.best_buy_from_me, xrp_sell, False)
-        if self.MODE is Mode.SELL:
-            if buy_from_me_change >= self.MIN_PRICE_CHANGE and xrp_sell > self.MIN_TRADE_AMOUNT:
-                self.order(self.best_buy_from_me, xrp_sell, True)
-            elif sell_to_me_change <= -self.MIN_PRICE_CHANGE and xrp_buy > self.MIN_TRADE_AMOUNT:
-                self.order(self.best_sell_to_me, xrp_buy, False)
-
         # Show info
         self.show(xrp_last_value, buy_from_me_change, sell_to_me_change)
 
-    def order(self, price, amount, is_need_to_change_mode):
-        # Set price by mode
+        # Create new order buy trade mode
         if self.MODE is Mode.BUY:
+            if sell_to_me_change <= -self.MIN_PRICE_CHANGE and xrp_buy > self.MIN_TRADE_AMOUNT:
+                # Buy order
+                self.order(self.best_sell_to_me, xrp_buy, Mode.BUY, True)
+            elif buy_from_me_change >= self.MIN_PRICE_CHANGE and xrp_sell > self.MIN_TRADE_AMOUNT:
+                # Sell order
+                self.order(self.best_buy_from_me, xrp_sell, Mode.SELL, False)
+        elif self.MODE is Mode.SELL:
+            if buy_from_me_change >= self.MIN_PRICE_CHANGE and xrp_sell > self.MIN_TRADE_AMOUNT:
+                # Sell order
+                self.order(self.best_buy_from_me, xrp_sell, Mode.SELL, True)
+            elif sell_to_me_change <= -self.MIN_PRICE_CHANGE and xrp_buy > self.MIN_TRADE_AMOUNT:
+                # Buy order
+                self.order(self.best_sell_to_me, xrp_buy, Mode.BUY, False)
+
+    def order(self, price, amount, mode, is_need_to_change_mode):
+        # Set price by mode and order
+        if mode is Mode.BUY:
             price = float(price) + 0.001
             print('[BUYING]: %.3f XRP with %.3f JPY' % (amount, price))
-        elif self.MODE is Mode.SELL:
+        elif mode is Mode.SELL:
             price = float(price) - 0.001
             print('[SELLING]: %.3f XRP with %.3f JPY' % (amount, price))
+        self.client.order(price, amount, mode.value)
 
         # Order and wait a while
-        self.WAITING = True
-        is_done = False
         wait_times = 0
-        self.client.order(price, amount, self.MODE.value)
         while True:
             latest_order = self.client.get_latest_order()
             if wait_times == self.MAX_WAIT_TIMES:
+                self.IS_DONE = False
                 break
             elif latest_order is None:
-                is_done = True
+                self.IS_DONE = True
                 break
             else:
                 print('[INFO]: Waiting for trade %d times' % (wait_times + 1))
                 wait_times += 1
             time.sleep(1)
 
-        # Handle result
-        if is_done:
-            if self.MODE is Mode.BUY:
+        # Update last time price
+        if self.IS_DONE:
+            if mode is Mode.BUY:
                 print('[FINISHED]: %.3f XRP with %.3f JPY' % (amount, price))
                 self.last_buy_for_me = price
                 self.change_mode(is_need_to_change_mode)
-            elif self.MODE is Mode.SELL:
-                print('[SELL_ORDER]: %.3f XRP with %.3f JPY' % (amount, price))
+            elif mode is Mode.SELL:
+                print('[FINISHED]: %.3f XRP with %.3f JPY' % (amount, price))
                 self.last_sell_for_me = price
                 self.change_mode(is_need_to_change_mode)
         else:
             print('[INFO]: Canceled all orders')
             self.client.cancel_all_orders()
-
-        # End wait
-        self.WAITING = False
 
     def change_mode(self, is_need_to_change_mode):
         # Change trade mode
@@ -127,7 +123,7 @@ class Trade:
                 self.MODE = Mode.BUY
 
     def show(self, xrp_last_value, buy_from_me_change, sell_to_me_change):
-        # Time
+        # Now time
         now_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
         # Show price change info
