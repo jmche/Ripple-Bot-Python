@@ -9,12 +9,11 @@ class Trade:
 
     def __init__(self, client):
         # Workers and bitbank api client
-        self.client = client
         self.workers = []
+        self.client = client
 
-        # Last time buy & sell price
-        self.last_buy = 0.0
-        self.last_sell = 0.0
+        # Last time ask & bid price
+        self.last_ask, self.last_bid = client.get_market_info()
 
         # Init trading mode
         self.INIT_MODE = MODE.DEFAULT
@@ -24,29 +23,24 @@ class Trade:
         if len(self.workers) == 0:
             # Update last info
             self.client.update()
-            self.last_buy, self.last_sell = self.client.get_last_price()
 
             # Calculate price change
-            best_buy_change = (self.client.best_buy - self.last_buy) / self.last_buy
-            best_sell_change = (self.client.best_sell - self.last_sell) / self.last_sell
-
-            # Calculate trade amount
-            xrp_buy = (CONFIG.BUY_PERCENT * self.client.jpy_available) / self.client.best_sell
-            xrp_sell = CONFIG.SELL_PERCENT * self.client.xrp_available
+            ask_change = (self.client.best_ask - self.last_ask) / self.last_ask
+            bid_change = (self.client.best_bid - self.last_bid) / self.last_bid
 
             # Show info
-            self.show(best_buy_change, best_sell_change)
+            self.show(ask_change, bid_change)
 
             # Create new worker to handle order
-            if best_sell_change <= -CONFIG.MIN_PRICE_CHANGE and xrp_buy > CONFIG.MIN_TRADE_AMOUNT:
+            if ask_change <= -CONFIG.MIN_PRICE_CHANGE:
                 # Create new worker
-                print('[INFO]: Add new BUY worker in trade')
-                worker = Worker(self, self.client, self.last_buy, self.last_sell, MODE.BUY)
+                print('[INFO]: Add new BUY worker in trade manager.')
+                worker = Worker(self, self.client, self.last_ask, self.last_bid, MODE.BUY)
                 self.workers.append(worker)
-            elif best_buy_change >= CONFIG.MIN_PRICE_CHANGE and xrp_sell > CONFIG.MIN_TRADE_AMOUNT:
+            elif bid_change >= CONFIG.MIN_PRICE_CHANGE:
                 # Create new worker
-                print('[INFO]: Add new SELL worker in trade')
-                worker = Worker(self, self.client, self.last_buy, self.last_sell, MODE.SELL)
+                print('[INFO]: Add new SELL worker in trade manager.')
+                worker = Worker(self, self.client, self.last_ask, self.last_bid, MODE.SELL)
                 self.workers.append(worker)
         else:
             # Handle order with workers
@@ -57,31 +51,19 @@ class Trade:
 
                 # Start trade
                 worker_id += 1
-                worker.update()
                 worker.execute(worker_id)
 
-    def show(self, buy_from_me_change, sell_to_me_change):
-        # Prepare
-        now_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        mode = self.INIT_MODE.name
-        last_buy = self.last_buy
-        last_sell = self.last_sell
-        best_buy = self.client.best_buy
-        best_sell = self.client.best_sell
-        xrp_available = self.client.xrp_available
-        jpy_available = self.client.jpy_available
-        all_available = self.client.xrp_latest_value * self.client.xrp_available + self.client.jpy_available
-
+    def show(self, ask_change, bid_change):
         # Show price change info
-        print('============ {} ============'.format(now_time))
-        print('|[MODE]: {:>35}'.format(mode) + '|')
-        print('|[LAST_BUY]: {:.3f}\t[LAST_SELL]: {:.3f}'.format(last_buy, last_sell) + '|')
-        print('|[BEST_BUY]: {:.3f}\t[BEST_SELL]: {:.3f}'.format(best_buy, best_sell) + '|')
-        print('|[CHANGE]:   {:+.3%}\t[CHANGE]:    {:+.3%}'.format(buy_from_me_change, sell_to_me_change) + '|')
+        print('============ {} ============'.format(datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+        print('|[MODE]: {:>35}'.format(self.INIT_MODE.name) + '|')
+        print('|[LAST_ASK]: {:.3f}     [LAST_BID]: {:.3f}'.format(self.last_ask, self.last_bid) + '|')
+        print('|[BEST_ASK]: {:.3f}     [BEST_BID]: {:.3f}'.format(self.client.best_ask, self.client.best_bid) + '|')
+        print('|[CHANGE]:   {:+.3%}     [CHANGE]:   {:+.3%}'.format(ask_change, bid_change) + '|')
 
         # Show newest account available amount
         print('|-------------------------------------------|')
-        print('|[XRP_AVAILABLE]: {:26.3f}'.format(xrp_available) + '|')
-        print('|[JPY_AVAILABLE]: {:26.3f}'.format(jpy_available) + '|')
-        print('|[ALL_AVAILABLE]: {:26.3f}'.format(all_available) + '|')
+        print('|[XRP_AVAILABLE]: {:26.3f}'.format(self.client.xrp_balance) + '|')
+        print('|[JPY_AVAILABLE]: {:26.3f}'.format(self.client.jpy_balance) + '|')
+        print('|[ALL_AVAILABLE]: {:26.3f}'.format(self.client.get_onhand_amount()) + '|')
         print('=============================================')

@@ -6,16 +6,14 @@ from datetime import datetime
 
 class Worker:
 
-    def __init__(self, trade, client, last_buy, last_sell, mode):
+    def __init__(self, trade, client, last_ask, last_bid, mode):
         # Managers
         self.trade = trade
         self.client = client
 
         # Last time buy & sell price
-        self.last_buy = last_buy
-        self.last_sell = last_sell
-        self.best_buy_change = 0.0
-        self.best_sell_change = 0.0
+        self.last_ask = last_ask
+        self.last_bid = last_bid
 
         # Setting
         self.MODE = mode
@@ -23,71 +21,66 @@ class Worker:
         self.IS_DONE = False
 
     def execute(self, worker_id):
-        # Calculate price change
-        self.best_buy_change = (self.client.best_buy - self.last_buy) / self.last_buy
-        self.best_sell_change = (self.client.best_sell - self.last_sell) / self.last_sell
+        global ask_change, ask_amount, bid_change, bid_amount
+        if self.STATE is STATE.START or self.STATE is STATE.PROCESS:
+            # Calculate price change
+            ask_change = (self.client.best_ask - self.last_ask) / self.last_ask
+            bid_change = (self.client.best_bid - self.last_bid) / self.last_bid
 
-        # Calculate trade amount
-        xrp_buy = (CONFIG.BUY_PERCENT * self.client.jpy_available) / self.client.best_sell
-        xrp_sell = CONFIG.SELL_PERCENT * self.client.xrp_available
+            # Calculate trade amount
+            ask_amount = CONFIG.ASK_PERCENT * (self.client.jpy_balance / self.client.xrp_value)
+            bid_amount = CONFIG.BID_PERCENT * self.client.xrp_balance
 
-        # Show info
-        self.show(worker_id)
+            # Show info
+            self.show(worker_id)
 
-        # First time trade
+        # Start state
         if self.STATE is STATE.START:
             if self.MODE is MODE.BUY:
-                if self.best_sell_change <= -CONFIG.MIN_PRICE_CHANGE and xrp_buy > CONFIG.MIN_TRADE_AMOUNT:
-                    # Create new buy order and switch to sell mode
-                    self.order(self.client.best_sell, xrp_buy, MODE.BUY)
-                    if self.IS_DONE:
-                        self.MODE = MODE.SELL
-                        self.STATE = STATE.PROCESS
+                if ask_change <= -CONFIG.MIN_PRICE_CHANGE and ask_amount > CONFIG.MIN_TRADE_AMOUNT:
+                    # Create new buy order
+                    self.order(self.client.best_ask, ask_amount, MODE.BUY)
                 else:
-                    # When price up
-                    print('[INFO]: Remove worker because price up')
+                    # When price up then remove worker
+                    print('[INFO]: Remove worker because price up.')
                     self.STATE = STATE.END
             elif self.MODE is MODE.SELL:
-                if self.best_buy_change >= CONFIG.MIN_PRICE_CHANGE and xrp_sell > CONFIG.MIN_TRADE_AMOUNT:
-                    # Create new sell order and sell one more time
-                    self.order(self.client.best_buy, xrp_sell, MODE.SELL)
-                    if self.IS_DONE:
-                        self.STATE = STATE.PROCESS
+                if bid_change >= CONFIG.MIN_PRICE_CHANGE and bid_amount > CONFIG.MIN_TRADE_AMOUNT:
+                    # Create new sell order
+                    self.order(self.client.best_bid, bid_amount, MODE.SELL)
                 else:
-                    # When price down
-                    print('[INFO]: Remove worker because price down')
+                    # When price up then remove worker
+                    print('[INFO]: Remove worker because price down.')
                     self.STATE = STATE.END
+        # Process state
         elif self.STATE is STATE.PROCESS:
-            if self.best_buy_change >= CONFIG.MIN_PRICE_CHANGE and xrp_sell > CONFIG.MIN_TRADE_AMOUNT:
-                # Create new sell order and remove worker
-                self.order(self.client.best_buy, xrp_sell, MODE.SELL)
-                self.STATE = STATE.END
-            elif self.best_sell_change <= -CONFIG.MIN_PRICE_CHANGE and xrp_buy > CONFIG.MIN_TRADE_AMOUNT:
+            if ask_change <= -CONFIG.MIN_PRICE_CHANGE and ask_amount > CONFIG.MIN_TRADE_AMOUNT:
                 # Create new worker to handle buy order
-                print('[INFO]: Add new BUY worker in worker {:d}'.format(worker_id))
-                worker = Worker(self.trade, self.client, self.last_buy, self.last_sell, MODE.BUY)
+                print('[INFO]: Add new BUY worker in worker {:d}.'.format(worker_id))
+                worker = Worker(self.trade, self.client, self.last_ask, self.last_bid, MODE.BUY)
                 self.trade.workers.append(worker)
-                self.last_sell = self.client.best_sell
+                self.last_ask = self.client.best_ask
+            elif bid_change >= CONFIG.MIN_PRICE_CHANGE and bid_amount > CONFIG.MIN_TRADE_AMOUNT:
+                # Create new sell order and remove worker
+                self.order(self.client.best_bid, bid_amount, MODE.SELL)
+                self.STATE = STATE.END
+        # End state
         elif self.STATE is STATE.END:
-            # Remove worker
+            # Remove worker and update trade manager
+            print(['[INFO]: Removed worker {:d}.'.format(worker_id)])
             self.trade.workers.remove(self)
 
     def update(self):
-        last_buy, last_sell = self.client.get_last_price()
-        if self.MODE == MODE.BUY:
-            self.last_sell = last_sell
-        elif self.MODE == MODE.SELL:
-            self.last_buy = last_buy
+        self.last_ask, self.last_bid = self.client.get_market_info()
 
     def order(self, price, amount, mode):
         # Set price by mode and create new order
         if mode is MODE.BUY:
-            print('[BUYING]: %.3f XRP with %.3f JPY' % (amount, price))
+            print('[BUYING]: %.3f XRP with %.3f JPY.' % (amount, price))
             price = float(price) + 0.001
             self.client.order(price, amount, 'buy')
-
         elif mode is MODE.SELL:
-            print('[SELLING]: %.3f XRP with %.3f JPY' % (amount, price))
+            print('[SELLING]: %.3f XRP with %.3f JPY.' % (amount, price))
             price = float(price) - 0.001
             self.client.order(price, amount, 'sell')
 
@@ -101,46 +94,39 @@ class Worker:
                 self.IS_DONE = True
                 break
             else:
-                print('[INFO]: Waiting for trade %d times' % (wait_times + 1))
+                print('[INFO]: Waiting for trade %d times...' % (wait_times + 1))
             time.sleep(1)
 
-        # Update last time price
         if self.IS_DONE:
+            # Update state and info
             if mode is MODE.BUY:
-                print('[FINISHED]: %.3f XRP with %.3f JPY' % (amount, price))
-                self.last_sell = price
+                print('[BOUGHT]: %.3f XRP with %.3f JPY.' % (amount, price))
+                self.MODE = MODE.SELL
+                self.STATE = STATE.PROCESS
+                self.trade.last_ask = price
             elif mode is MODE.SELL:
-                print('[FINISHED]: %.3f XRP with %.3f JPY' % (amount, price))
-                self.last_buy = price
+                print('[SOLD]: %.3f XRP with %.3f JPY.' % (amount, price))
+                self.STATE = STATE.END
+                self.trade.last_bid = price
         else:
-            print('[INFO]: Canceled all orders')
+            # Cancel all orders and update info
+            print('[INFO]: Cancelled all orders.')
             self.client.cancel_all_orders()
+            self.update()
 
     def show(self, worker_id):
-        # Prepare
-        now_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        mode = self.MODE.name
-        last_buy = self.last_buy
-        last_sell = self.last_sell
-        best_buy = self.client.best_buy
-        best_sell = self.client.best_sell
-        best_buy_change = self.best_buy_change
-        best_sell_change = self.best_sell_change
-        xrp_available = self.client.xrp_available
-        jpy_available = self.client.jpy_available
-        all_available = self.client.xrp_latest_value * self.client.xrp_available + self.client.jpy_available
-
         # Show price change info
         print('================= Worker[{:d}] ================='.format(worker_id))
-        print('============ {} ============'.format(now_time))
-        print('|[MODE]: {:>35}'.format(mode) + '|')
-        print('|[LAST_BUY]: {:.3f}\t[LAST_SELL]: {:.3f}'.format(last_buy, last_sell) + '|')
-        print('|[BEST_BUY]: {:.3f}\t[BEST_SELL]: {:.3f}'.format(best_buy, best_sell) + '|')
-        print('|[CHANGE]:   {:+.3%}\t[CHANGE]:    {:+.3%}'.format(best_buy_change, best_sell_change) + '|')
+        print('============ {} ============'.format(datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+        print('|[MODE]: {:>35}'.format(self.MODE.name) + '|')
+        print('|[LAST_ASK]: {:.3f}     [LAST_BID]: {:.3f}'.format(self.last_ask, self.last_bid) + '|')
+        print('|[BEST_ASK]: {:.3f}     [BEST_BID]: {:.3f}'.format(self.client.best_ask, self.client.best_bid) + '|')
+        print('|[CHANGE]:   {:+.3%}     [CHANGE]:   {:+.3%}'.format(ask_change, bid_change) + '|')
 
         # Show newest account available amount
         print('|-------------------------------------------|')
-        print('|[XRP_AVAILABLE]: {:26.3f}'.format(xrp_available) + '|')
-        print('|[JPY_AVAILABLE]: {:26.3f}'.format(jpy_available) + '|')
-        print('|[ALL_AVAILABLE]: {:26.3f}'.format(all_available) + '|')
+        print('|[XRP_AVAILABLE]: {:26.3f}'.format(self.client.xrp_balance) + '|')
+        print('|[JPY_AVAILABLE]: {:26.3f}'.format(self.client.jpy_balance) + '|')
+        print('|[ALL_AVAILABLE]: {:26.3f}'.format(self.client.get_onhand_amount()) + '|')
         print('=============================================')
+

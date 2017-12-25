@@ -5,63 +5,54 @@ class Client:
 
     def __init__(self, api_key, api_secret):
         # API
-        self.public_api = python_bitbankcc.public()
-        self.private_api = python_bitbankcc.private(api_key, api_secret)
+        self._public_api = python_bitbankcc.public()
+        self._private_api = python_bitbankcc.private(api_key, api_secret)
 
-        # Account available amount
-        self.jpy_available = 0.0
-        self.xrp_available = 0.0
+        # Account balance
+        self.jpy_balance = 0.0
+        self.xrp_balance = 0.0
 
         # Latest market info
-        self.best_buy = 0.0
-        self.best_sell = 0.0
-        self.xrp_latest_value = 0.0
+        self.best_ask = 0.0
+        self.best_bid = 0.0
+        self.xrp_value = 0.0
 
         # Settings
         self.PAIR = 'xrp_jpy'
         self.TRADE_TYPE = 'limit'
 
     def update(self):
-        self.xrp_latest_value = self.get_xrp_price()
-        self.best_buy, self.best_sell = self.get_best_price()
-        self.xrp_available, self.jpy_available = self.get_available()
+        self.xrp_value = self.get_xrp_value()
+        self.best_ask, self.best_bid = self.get_market_info()
+        self.xrp_balance, self.jpy_balance = self.get_balance()
 
     def order(self, price, amount, mode):
-        self.private_api.order(self.PAIR, str(price), str(amount), mode, self.TRADE_TYPE)
+        self._private_api.order(self.PAIR, str(price), str(amount), mode, self.TRADE_TYPE)
 
-    def get_xrp_price(self):
-        ticker = self.public_api.get_ticker(self.PAIR)
-        return float(ticker['last'])
+    def get_xrp_value(self):
+        return float(self._public_api.get_ticker(self.PAIR)['last'])
 
-    def get_available(self):
-        global xrp_available, jpy_available
-        assets = self.private_api.get_asset()['assets']
-        for asset in assets:
-            if asset['asset'] == 'xrp':
-                xrp_available = float(asset['onhand_amount'])
-            if asset['asset'] == 'jpy':
-                jpy_available = float(asset['onhand_amount'])
-        return xrp_available, jpy_available
+    def get_balance(self):
+        assets = self._private_api.get_asset()['assets']
+        xrp_balance = [float(asset['onhand_amount']) for asset in assets if asset['asset'] == 'xrp'][0]
+        jpy_balance = [float(asset['onhand_amount']) for asset in assets if asset['asset'] == 'jpy'][0]
+        return xrp_balance, jpy_balance
 
-    def get_best_price(self):
-        ticker = self.public_api.get_ticker(self.PAIR)
+    def get_onhand_amount(self):
+        return self.xrp_value * self.xrp_balance + self.jpy_balance
+
+    def get_market_info(self):
+        ticker = self._public_api.get_ticker(self.PAIR)
         return float(ticker['buy']), float(ticker['sell'])
 
-    def get_last_price(self):
-        global last_buy, last_sell
-        trades = self.private_api.get_trade_history(self.PAIR, 100)['trades']
-        for trade in trades:
-            if trade['side'] == 'buy':
-                last_buy = float(trade['price'])
-                break
-        for trade in trades:
-            if trade['side'] == 'sell':
-                last_sell = float(trade['price'])
-                break
-        return last_buy, last_sell
+    def get_last_trade_info(self):
+        trades = self._private_api.get_trade_history(self.PAIR, 100)['trades']
+        last_ask = [float(trade['price']) for trade in trades if trade['side'] == 'buy'][0]
+        last_bid = [float(trade['price']) for trade in trades if trade['side'] == 'sell'][0]
+        return last_ask, last_bid
 
     def get_latest_order(self):
-        orders = self.private_api.get_active_orders(self.PAIR)['orders']
+        orders = self._private_api.get_active_orders(self.PAIR)['orders']
         if len(orders) == 0:
             return None
         else:
@@ -69,8 +60,8 @@ class Client:
 
     def cancel_all_orders(self):
         order_ids = []
-        orders = self.private_api.get_active_orders(self.PAIR)['orders']
+        orders = self._private_api.get_active_orders(self.PAIR)['orders']
         if len(orders) != 0:
             for order in orders:
                 order_ids.append(order['order_id'])
-            self.private_api.cancel_orders(self.PAIR, order_ids)
+            self._private_api.cancel_orders(self.PAIR, order_ids)
