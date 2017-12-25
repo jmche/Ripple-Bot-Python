@@ -35,23 +35,22 @@ class Worker:
             self.show(worker_id)
 
         # Start state
-        if self.STATE is STATE.START:
-            if self.MODE is MODE.BUY:
-                if ask_change <= -CONFIG.MIN_PRICE_CHANGE and ask_amount > CONFIG.MIN_TRADE_AMOUNT:
-                    # Create new buy order
-                    self.order(self.client.best_ask, ask_amount, MODE.BUY)
-                else:
-                    # When price up then remove worker
-                    print('[INFO]: Remove worker because price up.')
-                    self.STATE = STATE.END
-            elif self.MODE is MODE.SELL:
-                if bid_change >= CONFIG.MIN_PRICE_CHANGE and bid_amount > CONFIG.MIN_TRADE_AMOUNT:
-                    # Create new sell order
-                    self.order(self.client.best_bid, bid_amount, MODE.SELL)
-                else:
-                    # When price up then remove worker
-                    print('[INFO]: Remove worker because price down.')
-                    self.STATE = STATE.END
+        if self.STATE is STATE.START and self.MODE is MODE.BUY:
+            if ask_change <= -CONFIG.MIN_PRICE_CHANGE and ask_amount > CONFIG.MIN_TRADE_AMOUNT:
+                # Create new buy order
+                self.order(self.client.best_ask, ask_amount, MODE.BUY)
+            else:
+                # When price up then remove worker
+                print('[INFO]: Remove worker because price up.')
+                self.STATE = STATE.END
+        elif self.STATE is STATE.START and self.MODE is MODE.SELL:
+            if bid_change >= CONFIG.MIN_PRICE_CHANGE and bid_amount > CONFIG.MIN_TRADE_AMOUNT:
+                # Create new sell order
+                self.order(self.client.best_bid, bid_amount, MODE.SELL)
+            else:
+                # When price up then remove worker
+                print('[INFO]: Remove worker because price down.')
+                self.STATE = STATE.END
         # Process state
         elif self.STATE is STATE.PROCESS:
             if ask_change <= -CONFIG.MIN_PRICE_CHANGE and ask_amount > CONFIG.MIN_TRADE_AMOUNT:
@@ -67,21 +66,18 @@ class Worker:
         # End state
         elif self.STATE is STATE.END:
             # Remove worker and update trade manager
-            print(['[INFO]: Removed worker {:d}.'.format(worker_id)])
+            print('[INFO]: Removed worker {:d}.'.format(worker_id))
             self.trade.workers.remove(self)
-
-    def update(self):
-        self.last_ask, self.last_bid = self.client.get_market_info()
 
     def order(self, price, amount, mode):
         # Set price by mode and create new order
         if mode is MODE.BUY:
-            print('[BUYING]: %.3f XRP with %.3f JPY.' % (amount, price))
             price = float(price) + 0.001
+            print('[BUYING]: %.3f XRP with %.3f JPY.' % (amount, price))
             self.client.order(price, amount, 'buy')
         elif mode is MODE.SELL:
-            print('[SELLING]: %.3f XRP with %.3f JPY.' % (amount, price))
             price = float(price) - 0.001
+            print('[SELLING]: %.3f XRP with %.3f JPY.' % (amount, price))
             self.client.order(price, amount, 'sell')
 
         # Order and wait a while
@@ -97,22 +93,21 @@ class Worker:
                 print('[INFO]: Waiting for trade %d times...' % (wait_times + 1))
             time.sleep(1)
 
-        if self.IS_DONE:
-            # Update state and info
-            if mode is MODE.BUY:
-                print('[BOUGHT]: %.3f XRP with %.3f JPY.' % (amount, price))
-                self.MODE = MODE.SELL
-                self.STATE = STATE.PROCESS
-                self.trade.last_ask = price
-            elif mode is MODE.SELL:
-                print('[SOLD]: %.3f XRP with %.3f JPY.' % (amount, price))
-                self.STATE = STATE.END
-                self.trade.last_bid = price
+        # Update state and info
+        if self.IS_DONE and mode is MODE.BUY:
+            print('[BOUGHT]: %.3f XRP with %.3f JPY.' % (amount, price))
+            self.MODE = MODE.SELL
+            self.STATE = STATE.PROCESS
+            self.trade.last_ask = price
+            self.last_ask = self.last_bid = price
+        elif self.IS_DONE and mode is MODE.SELL:
+            print('[SOLD]: %.3f XRP with %.3f JPY.' % (amount, price))
+            self.STATE = STATE.END
+            self.trade.last_bid = price
         else:
             # Cancel all orders and update info
             print('[INFO]: Cancelled all orders.')
             self.client.cancel_all_orders()
-            self.update()
 
     def show(self, worker_id):
         # Show price change info

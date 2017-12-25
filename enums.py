@@ -1,13 +1,13 @@
-from enum import Enum, auto
+from enum import Enum
 
 
 class MODE(Enum):
-    BUY = auto()
-    SELL = auto()
-    DEFAULT = auto()
+    DEFAULT = 0
+    BUY = 1
+    SELL = 2
 
 
 class STATE(Enum):
-    START = auto()
-    PROCESS = auto()
-    END = auto()
+    START = 0
+    PROCESS = 1
+    END = 2
