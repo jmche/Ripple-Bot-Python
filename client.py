@@ -13,9 +13,9 @@ class Client:
         self.xrp_available = 0.0
 
         # Latest market info
+        self.best_buy = 0.0
+        self.best_sell = 0.0
         self.xrp_latest_value = 0.0
-        self.best_buy_from_me = 0.0
-        self.best_sell_to_me = 0.0
 
         # Settings
         self.PAIR = 'xrp_jpy'
@@ -23,8 +23,8 @@ class Client:
 
     def update(self):
         self.xrp_latest_value = self.get_xrp_price()
+        self.best_buy, self.best_sell = self.get_best_price()
         self.xrp_available, self.jpy_available = self.get_available()
-        self.best_buy_from_me, self.best_sell_to_me = self.get_best_price()
 
     def order(self, price, amount, mode):
         self.private_api.order(self.PAIR, str(price), str(amount), mode, self.TRADE_TYPE)

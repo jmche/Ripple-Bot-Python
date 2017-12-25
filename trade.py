@@ -9,84 +9,79 @@ class Trade:
 
     def __init__(self, client):
         # Workers and bitbank api client
-        self.workers = []
         self.client = client
+        self.workers = []
 
         # Last time buy & sell price
-        self.last_buy_for_me = 0.0
-        self.last_sell_for_me = 0.0
+        self.last_buy = 0.0
+        self.last_sell = 0.0
 
         # Init trading mode
         self.INIT_MODE = MODE.DEFAULT
 
     def execute(self):
-        # Update and start trade
-        self.client.update()
-
+        # When there are no workers
         if len(self.workers) == 0:
-            # Update info
-            self.update()
+            # Update last info
+            self.client.update()
+            self.last_buy, self.last_sell = self.client.get_last_price()
 
             # Calculate price change
-            buy_from_me_change = (self.client.best_buy_from_me - self.last_buy_for_me) / self.last_buy_for_me
-            sell_to_me_change = (self.client.best_sell_to_me - self.last_sell_for_me) / self.last_sell_for_me
+            best_buy_change = (self.client.best_buy - self.last_buy) / self.last_buy
+            best_sell_change = (self.client.best_sell - self.last_sell) / self.last_sell
 
             # Calculate trade amount
-            xrp_buy = (CONFIG.TRADE_PERCENT * self.client.jpy_available) / self.client.best_sell_to_me
-            xrp_sell = CONFIG.TRADE_PERCENT * self.client.xrp_available
+            xrp_buy = (CONFIG.BUY_PERCENT * self.client.jpy_available) / self.client.best_sell
+            xrp_sell = CONFIG.SELL_PERCENT * self.client.xrp_available
 
             # Show info
-            self.show(buy_from_me_change, sell_to_me_change)
+            self.show(best_buy_change, best_sell_change)
 
             # Create new worker to handle order
-            if self.INIT_MODE is MODE.BUY:
-                if sell_to_me_change <= -CONFIG.MIN_PRICE_CHANGE and xrp_buy > CONFIG.MIN_TRADE_AMOUNT:
-                    # Create new worker
-                    worker = Worker(self, self.client, self.last_buy_for_me, self.last_buy_for_me, self.INIT_MODE)
-                    self.workers.append(worker)
-            elif self.INIT_MODE is MODE.SELL:
-                if buy_from_me_change >= CONFIG.MIN_PRICE_CHANGE and xrp_sell > CONFIG.MIN_TRADE_AMOUNT:
-                    # Create new worker
-                    worker = Worker(self, self.client, self.last_buy_for_me, self.last_buy_for_me, self.INIT_MODE)
-                    self.workers.append(worker)
+            if best_sell_change <= -CONFIG.MIN_PRICE_CHANGE and xrp_buy > CONFIG.MIN_TRADE_AMOUNT:
+                # Create new worker
+                print('[INFO]: Add new BUY worker in trade')
+                worker = Worker(self, self.client, self.last_buy, self.last_sell, MODE.BUY)
+                self.workers.append(worker)
+            elif best_buy_change >= CONFIG.MIN_PRICE_CHANGE and xrp_sell > CONFIG.MIN_TRADE_AMOUNT:
+                # Create new worker
+                print('[INFO]: Add new SELL worker in trade')
+                worker = Worker(self, self.client, self.last_buy, self.last_sell, MODE.SELL)
+                self.workers.append(worker)
         else:
             # Handle order with workers
             worker_id = 0
             for worker in self.workers:
+                # Update last info
+                self.client.update()
+
+                # Start trade
                 worker_id += 1
+                worker.update()
                 worker.execute(worker_id)
 
-    def update(self):
-        # Update last info
-        self.last_buy_for_me, self.last_sell_for_me = self.client.get_last_price()
-
-        # Update market info
-        xrp_price = self.client.xrp_latest_value
+    def show(self, buy_from_me_change, sell_to_me_change):
+        # Prepare
+        now_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        mode = self.INIT_MODE.name
+        last_buy = self.last_buy
+        last_sell = self.last_sell
+        best_buy = self.client.best_buy
+        best_sell = self.client.best_sell
         xrp_available = self.client.xrp_available
         jpy_available = self.client.jpy_available
-
-        # Setting mode by available amount
-        if jpy_available >= xrp_available * xrp_price:
-            self.INIT_MODE = MODE.BUY
-        else:
-            self.INIT_MODE = MODE.SELL
-
-    def show(self, buy_from_me_change, sell_to_me_change):
-        # Now time
-        now_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        print('============ {} ============'.format(now_time))
+        all_available = self.client.xrp_latest_value * self.client.xrp_available + self.client.jpy_available
 
         # Show price change info
-        print('|[MODE]: {:>35}'.format(self.INIT_MODE.name) + '|')
-        print('|[LAST_BUY]: {:.3f}\t[LAST_SELL]: {:.3f}'.format(self.last_buy_for_me, self.last_sell_for_me) + '|')
-        print('|[BEST_BUY]: {:.3f}\t[BEST_SELL]: {:.3f}'.format(self.client.best_buy_from_me,
-                                                                self.client.best_sell_to_me) + '|')
+        print('============ {} ============'.format(now_time))
+        print('|[MODE]: {:>35}'.format(mode) + '|')
+        print('|[LAST_BUY]: {:.3f}\t[LAST_SELL]: {:.3f}'.format(last_buy, last_sell) + '|')
+        print('|[BEST_BUY]: {:.3f}\t[BEST_SELL]: {:.3f}'.format(best_buy, best_sell) + '|')
         print('|[CHANGE]:   {:+.3%}\t[CHANGE]:    {:+.3%}'.format(buy_from_me_change, sell_to_me_change) + '|')
 
         # Show newest account available amount
-        all_available = self.client.xrp_latest_value * self.client.xrp_available + self.client.jpy_available
         print('|-------------------------------------------|')
-        print('|[XRP_AVAILABLE]: {:26.3f}'.format(self.client.xrp_available) + '|')
-        print('|[JPY_AVAILABLE]: {:26.3f}'.format(self.client.jpy_available) + '|')
+        print('|[XRP_AVAILABLE]: {:26.3f}'.format(xrp_available) + '|')
+        print('|[JPY_AVAILABLE]: {:26.3f}'.format(jpy_available) + '|')
         print('|[ALL_AVAILABLE]: {:26.3f}'.format(all_available) + '|')
         print('=============================================')

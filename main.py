@@ -10,8 +10,8 @@ if __name__ == '__main__':
     api_secret = str(lines[1])
     client = Client(api_key, api_secret)
 
-    # Start trade every second
+    # Start trade every 0.5 second
     trade = Trade(client)
     while True:
         trade.execute()
-        time.sleep(1)
+        time.sleep(0.5)
