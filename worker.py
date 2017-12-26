@@ -71,14 +71,17 @@ class Worker:
 
     def order(self, price, amount, mode):
         # Set price by mode and create new order
+        global is_success
         if mode is MODE.BUY:
             price = float(price) + 0.001
             print('[BUYING]: %.3f XRP with %.3f JPY.' % (amount, price))
-            self.client.order(price, amount, 'buy')
+            is_success = self.client.order(price, amount, 'buy')
         elif mode is MODE.SELL:
             price = float(price) - 0.001
             print('[SELLING]: %.3f XRP with %.3f JPY.' % (amount, price))
-            self.client.order(price, amount, 'sell')
+            is_success = self.client.order(price, amount, 'sell')
+        if is_success is False:
+            return
 
         # Order and wait a while
         for wait_times in range(CONFIG.MAX_WAIT_TIMES + 1):
@@ -98,12 +101,12 @@ class Worker:
             print('[BOUGHT]: %.3f XRP with %.3f JPY.' % (amount, price))
             self.MODE = MODE.SELL
             self.STATE = STATE.PROCESS
-            self.trade.last_ask = price
             self.last_ask = self.last_bid = price
         elif self.IS_DONE and mode is MODE.SELL:
             print('[SOLD]: %.3f XRP with %.3f JPY.' % (amount, price))
+            self.MODE = MODE.DEFAULT
             self.STATE = STATE.END
-            self.trade.last_bid = price
+            self.trade.last_ask, self.trade.last_bid = price
         else:
             # Cancel all orders and update info
             print('[INFO]: Cancelled all orders.')

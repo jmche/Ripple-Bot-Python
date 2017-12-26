@@ -27,7 +27,12 @@ class Client:
         self.xrp_balance, self.jpy_balance = self.get_balance()
 
     def order(self, price, amount, mode):
-        self._private_api.order(self.PAIR, str(price), str(amount), mode, self.TRADE_TYPE)
+        try:
+            self._private_api.order(self.PAIR, str(price), str(amount), mode, self.TRADE_TYPE)
+            return True
+        except Exception as e:
+            print(e.args)
+            return False
 
     def get_xrp_value(self):
         return float(self._public_api.get_ticker(self.PAIR)['last'])
