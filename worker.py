@@ -65,7 +65,6 @@ class Worker:
             elif bid_change >= CONFIG.MIN_PRICE_CHANGE and xrp_usage < self.client.xrp_balance:
                 # Create new sell order and remove worker
                 self.order(self.client.best_bid, CONFIG.TRADE_AMOUNT, MODE.SELL)
-                self.STATE = STATE.END
         # End state
         elif self.STATE is STATE.END:
             # Remove worker and update trade manager
