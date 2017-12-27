@@ -19,52 +19,61 @@ class Worker:
         self.MODE = mode
         self.STATE = STATE.START
         self.IS_DONE = False
+        self.IS_ADDED = False
 
     def execute(self, worker_id):
-        global ask_change, ask_amount, bid_change, bid_amount
+        global ask_change, bid_change, xrp_usage, jpy_usage
         if self.STATE is STATE.START or self.STATE is STATE.PROCESS:
             # Calculate price change
             ask_change = (self.client.best_ask - self.last_ask) / self.last_ask
             bid_change = (self.client.best_bid - self.last_bid) / self.last_bid
 
-            # Calculate trade amount
-            ask_amount = CONFIG.ASK_PERCENT * (self.client.jpy_balance / self.client.xrp_value)
-            bid_amount = CONFIG.BID_PERCENT * self.client.xrp_balance
+            # Calculate usage
+            xrp_usage = CONFIG.TRADE_AMOUNT
+            jpy_usage = CONFIG.TRADE_AMOUNT * self.client.xrp_value
 
             # Show info
             self.show(worker_id)
 
         # Start state
         if self.STATE is STATE.START and self.MODE is MODE.BUY:
-            if ask_change <= -CONFIG.MIN_PRICE_CHANGE and ask_amount > CONFIG.MIN_TRADE_AMOUNT:
+            if ask_change <= -CONFIG.MIN_PRICE_CHANGE and jpy_usage < self.client.jpy_balance:
                 # Create new buy order
-                self.order(self.client.best_ask, ask_amount, MODE.BUY)
+                self.order(self.client.best_ask, CONFIG.TRADE_AMOUNT, MODE.BUY)
             else:
                 # When price up then remove worker
                 print('[INFO]: Remove worker because price up.')
-                self.STATE = STATE.END
+                self.STATE = STATE.FAILURE
         elif self.STATE is STATE.START and self.MODE is MODE.SELL:
-            if bid_change >= CONFIG.MIN_PRICE_CHANGE and bid_amount > CONFIG.MIN_TRADE_AMOUNT:
+            if bid_change >= CONFIG.MIN_PRICE_CHANGE and xrp_usage < self.client.xrp_balance:
                 # Create new sell order
-                self.order(self.client.best_bid, bid_amount, MODE.SELL)
+                self.order(self.client.best_bid, CONFIG.TRADE_AMOUNT, MODE.SELL)
             else:
                 # When price up then remove worker
                 print('[INFO]: Remove worker because price down.')
-                self.STATE = STATE.END
+                self.STATE = STATE.FAILURE
         # Process state
         elif self.STATE is STATE.PROCESS:
-            if ask_change <= -CONFIG.MIN_PRICE_CHANGE and ask_amount > CONFIG.MIN_TRADE_AMOUNT:
-                # Create new worker to handle buy order
-                print('[INFO]: Add new BUY worker in worker {:d}.'.format(worker_id))
-                worker = Worker(self.trade, self.client, self.last_ask, self.last_bid, MODE.BUY)
-                self.trade.workers.append(worker)
-                self.last_ask = self.client.best_ask
-            elif bid_change >= CONFIG.MIN_PRICE_CHANGE and bid_amount > CONFIG.MIN_TRADE_AMOUNT:
+            if ask_change <= -CONFIG.MIN_PRICE_CHANGE and jpy_usage < self.client.jpy_balance:
+                if self.IS_ADDED is False:
+                    # Create new worker to handle buy order
+                    print('[INFO]: Add new BUY worker in worker {:d}.'.format(worker_id))
+                    worker = Worker(self.trade, self.client, self.last_ask, self.last_bid, MODE.BUY)
+                    self.trade.workers.append(worker)
+                    self.last_ask = self.client.best_ask
+                    self.IS_ADDED = True
+            elif bid_change >= CONFIG.MIN_PRICE_CHANGE and xrp_usage < self.client.xrp_balance:
                 # Create new sell order and remove worker
-                self.order(self.client.best_bid, bid_amount, MODE.SELL)
+                self.order(self.client.best_bid, CONFIG.TRADE_AMOUNT, MODE.SELL)
                 self.STATE = STATE.END
         # End state
         elif self.STATE is STATE.END:
+            # Remove worker and update trade manager
+            print('[INFO]: Removed worker {:d}.'.format(worker_id))
+            self.trade.workers.remove(self)
+            self.trade.last_ask, self.trade.last_bid = self.client.get_market_info()
+        # Failure state
+        elif self.STATE is STATE.FAILURE:
             # Remove worker and update trade manager
             print('[INFO]: Removed worker {:d}.'.format(worker_id))
             self.trade.workers.remove(self)
@@ -81,6 +90,7 @@ class Worker:
             print('[SELLING]: %.3f XRP with %.3f JPY.' % (amount, price))
             is_success = self.client.order(price, amount, 'sell')
         if is_success is False:
+            print('[TRADE]: Trade failure.')
             return
 
         # Order and wait a while
@@ -106,7 +116,6 @@ class Worker:
             print('[SOLD]: %.3f XRP with %.3f JPY.' % (amount, price))
             self.MODE = MODE.DEFAULT
             self.STATE = STATE.END
-            self.trade.last_ask, self.trade.last_bid = price
         else:
             # Cancel all orders and update info
             print('[INFO]: Cancelled all orders.')
@@ -127,4 +136,3 @@ class Worker:
         print('|[JPY_AVAILABLE]: {:26.3f}'.format(self.client.jpy_balance) + '|')
         print('|[ALL_AVAILABLE]: {:26.3f}'.format(self.client.get_onhand_amount()) + '|')
         print('=============================================')
-

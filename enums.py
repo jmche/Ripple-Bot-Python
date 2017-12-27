@@ -11,3 +11,4 @@ class STATE(Enum):
     START = 0
     PROCESS = 1
     END = 2
+    FAILURE = 3
