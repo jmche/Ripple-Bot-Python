@@ -45,6 +45,8 @@ class Worker:
                 # When price up then remove worker
                 print('[INFO]: Remove worker because price up or no enough jpy.')
                 self.STATE = STATE.FAILURE
+                if self.last_worker is not None:
+                    self.last_worker.IS_ADDED = False
         elif self.STATE is STATE.START and self.MODE is MODE.SELL:
             if bid_change >= CONFIG.MIN_PRICE_CHANGE and xrp_usage <= self.client.xrp_balance:
                 # Create new sell order
@@ -61,6 +63,7 @@ class Worker:
                     print('[INFO]: Add new BUY worker in worker {:d}.'.format(worker_id))
                     worker = Worker(self.trade, self.client, self.last_ask, self.last_bid, MODE.BUY, self)
                     self.trade.workers.append(worker)
+                    self.IS_ADDED = True
             elif bid_change >= CONFIG.MIN_PRICE_CHANGE and xrp_usage <= self.client.xrp_balance:
                 # Create new sell order and remove worker
                 self.order(self.client.best_bid, CONFIG.TRADE_AMOUNT, MODE.SELL)
@@ -112,7 +115,6 @@ class Worker:
             self.last_ask = self.last_bid = price
             if self.last_worker is not None:
                 self.last_worker.last_ask = self.client.best_ask
-                self.last_worker.IS_ADDED = True
         elif self.IS_DONE and mode is MODE.SELL:
             print('[SOLD]: %.3f XRP with %.3f JPY.' % (amount, price))
             self.MODE = MODE.DEFAULT
