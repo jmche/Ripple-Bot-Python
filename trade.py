@@ -36,13 +36,18 @@ class Trade:
             self.show(ask_change, bid_change)
 
             # Create new worker to handle order
-            if ask_change <= -CONFIG.MIN_PRICE_CHANGE and jpy_usage <= self.client.jpy_balance:
-                # Create new worker
+            if ask_change >= CONFIG.MAX_PRICE_CHANGE and self.client.xrp_balance < CONFIG.TRADE_AMOUNT:
+                # Create new worker when ask up
+                print('[INFO]: Add new BUY worker in trade manager because price up.')
+                worker = Worker(self, self.client, self.last_ask, self.last_bid, MODE.BUY, None)
+                self.workers.append(worker)
+            elif ask_change <= -CONFIG.MIN_PRICE_CHANGE and jpy_usage <= self.client.jpy_balance:
+                # Create new worker when ask down
                 print('[INFO]: Add new BUY worker in trade manager.')
                 worker = Worker(self, self.client, self.last_ask, self.last_bid, MODE.BUY, None)
                 self.workers.append(worker)
             elif bid_change >= CONFIG.MIN_PRICE_CHANGE and xrp_usage <= self.client.xrp_balance:
-                # Create new worker
+                # Create new worker when bid up
                 print('[INFO]: Add new SELL worker in trade manager.')
                 worker = Worker(self, self.client, self.last_ask, self.last_bid, MODE.SELL, None)
                 self.workers.append(worker)
