@@ -39,12 +39,12 @@ class Trade:
             if ask_change <= -CONFIG.MIN_PRICE_CHANGE and jpy_usage <= self.client.jpy_balance:
                 # Create new worker
                 print('[INFO]: Add new BUY worker in trade manager.')
-                worker = Worker(self, self.client, self.last_ask, self.last_bid, MODE.BUY)
+                worker = Worker(self, self.client, self.last_ask, self.last_bid, MODE.BUY, None)
                 self.workers.append(worker)
             elif bid_change >= CONFIG.MIN_PRICE_CHANGE and xrp_usage <= self.client.xrp_balance:
                 # Create new worker
                 print('[INFO]: Add new SELL worker in trade manager.')
-                worker = Worker(self, self.client, self.last_ask, self.last_bid, MODE.SELL)
+                worker = Worker(self, self.client, self.last_ask, self.last_bid, MODE.SELL, None)
                 self.workers.append(worker)
         else:
             # Handle order with workers
