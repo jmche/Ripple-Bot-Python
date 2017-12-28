@@ -28,16 +28,20 @@ class Trade:
             ask_change = (self.client.best_ask - self.last_ask) / self.last_ask
             bid_change = (self.client.best_bid - self.last_bid) / self.last_bid
 
+            # Calculate usage
+            xrp_usage = CONFIG.TRADE_AMOUNT
+            jpy_usage = CONFIG.TRADE_AMOUNT * self.client.xrp_value
+
             # Show info
             self.show(ask_change, bid_change)
 
             # Create new worker to handle order
-            if ask_change <= -CONFIG.MIN_PRICE_CHANGE:
+            if ask_change <= -CONFIG.MIN_PRICE_CHANGE and jpy_usage <= self.client.jpy_balance:
                 # Create new worker
                 print('[INFO]: Add new BUY worker in trade manager.')
                 worker = Worker(self, self.client, self.last_ask, self.last_bid, MODE.BUY)
                 self.workers.append(worker)
-            elif bid_change >= CONFIG.MIN_PRICE_CHANGE:
+            elif bid_change >= CONFIG.MIN_PRICE_CHANGE and xrp_usage <= self.client.xrp_balance:
                 # Create new worker
                 print('[INFO]: Add new SELL worker in trade manager.')
                 worker = Worker(self, self.client, self.last_ask, self.last_bid, MODE.SELL)
