@@ -37,7 +37,7 @@ class Worker:
 
         # Start state
         if self.STATE is STATE.START and self.MODE is MODE.BUY:
-            if ask_change <= -CONFIG.MIN_PRICE_CHANGE and jpy_usage < self.client.jpy_balance:
+            if ask_change <= -CONFIG.MIN_PRICE_CHANGE and jpy_usage <= self.client.jpy_balance:
                 # Create new buy order
                 self.order(self.client.best_ask, CONFIG.TRADE_AMOUNT, MODE.BUY)
             else:
@@ -45,7 +45,7 @@ class Worker:
                 print('[INFO]: Remove worker because price up.')
                 self.STATE = STATE.FAILURE
         elif self.STATE is STATE.START and self.MODE is MODE.SELL:
-            if bid_change >= CONFIG.MIN_PRICE_CHANGE and xrp_usage < self.client.xrp_balance:
+            if bid_change >= CONFIG.MIN_PRICE_CHANGE and xrp_usage <= self.client.xrp_balance:
                 # Create new sell order
                 self.order(self.client.best_bid, CONFIG.TRADE_AMOUNT, MODE.SELL)
             else:
@@ -54,7 +54,7 @@ class Worker:
                 self.STATE = STATE.FAILURE
         # Process state
         elif self.STATE is STATE.PROCESS:
-            if ask_change <= -CONFIG.MIN_PRICE_CHANGE and jpy_usage < self.client.jpy_balance:
+            if ask_change <= -CONFIG.MIN_PRICE_CHANGE and jpy_usage <= self.client.jpy_balance:
                 if self.IS_ADDED is False:
                     # Create new worker to handle buy order
                     print('[INFO]: Add new BUY worker in worker {:d}.'.format(worker_id))
@@ -62,7 +62,7 @@ class Worker:
                     self.trade.workers.append(worker)
                     self.last_ask = self.client.best_ask
                     self.IS_ADDED = True
-            elif bid_change >= CONFIG.MIN_PRICE_CHANGE and xrp_usage < self.client.xrp_balance:
+            elif bid_change >= CONFIG.MIN_PRICE_CHANGE and xrp_usage <= self.client.xrp_balance:
                 # Create new sell order and remove worker
                 self.order(self.client.best_bid, CONFIG.TRADE_AMOUNT, MODE.SELL)
         # End state
