@@ -119,6 +119,8 @@ class Worker:
             print('[SOLD]: %.3f XRP with %.3f JPY.' % (amount, price))
             self.MODE = MODE.DEFAULT
             self.STATE = STATE.END
+            if self.last_worker is not None:
+                self.last_worker.IS_ADDED = False
         else:
             # Cancel all orders and update info
             print('[INFO]: Cancelled all orders.')
