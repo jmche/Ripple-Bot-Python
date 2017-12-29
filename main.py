@@ -13,5 +13,8 @@ if __name__ == '__main__':
     # Start trade every 0.5 second
     trade = Trade(client)
     while True:
-        trade.execute()
+        try:
+            trade.execute()
+        except Exception as e:
+            print(e.args)
         time.sleep(0.5)
