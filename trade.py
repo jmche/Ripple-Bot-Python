@@ -40,6 +40,7 @@ class Trade:
                 # Create new worker when ask up
                 print('[INFO]: Add new BUY worker in trade manager because price up.')
                 worker = Worker(self, self.client, self.last_ask, self.last_bid, MODE.BUY, None)
+                worker.order(self.client.best_ask, CONFIG.TRADE_AMOUNT, MODE.BUY)
                 self.workers.append(worker)
             elif ask_change <= -CONFIG.MIN_PRICE_CHANGE and jpy_usage <= self.client.jpy_balance:
                 # Create new worker when ask down
