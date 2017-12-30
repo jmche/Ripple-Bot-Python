@@ -119,8 +119,6 @@ class Worker:
             self.MODE = MODE.SELL
             self.STATE = STATE.PROCESS
             self.last_ask = self.last_bid = price
-            if self.last_worker is not None:
-                self.last_worker.last_ask = self.client.best_ask
         elif self.IS_DONE and mode is MODE.SELL:
             print('[SOLD]: %.3f XRP with %.3f JPY.' % (amount, price))
             self.MODE = MODE.DEFAULT
