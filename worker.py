@@ -32,6 +32,7 @@ class Worker:
         bid_change = (self.client.best_bid - self.last_bid) / self.last_bid
 
         # Trade amount and trade condition
+        is_ask_up = ask_change >= CONFIG.MAX_PRICE_CHANGE
         is_need_to_buy = ask_change <= -CONFIG.MIN_PRICE_CHANGE
         is_need_to_sell = bid_change >= CONFIG.MIN_PRICE_CHANGE
         buy_amount, sell_amount = self.client.get_trade_amount()
@@ -41,7 +42,7 @@ class Worker:
 
         # Start state
         if self.STATE is STATE.START and self.MODE is MODE.BUY:
-            if is_need_to_buy and buy_amount >= CONFIG.MIN_TRADE_AMOUNT:
+            if (is_need_to_buy or is_ask_up) and buy_amount >= CONFIG.MIN_TRADE_AMOUNT:
                 # Create new buy order
                 self.order(self.client.best_ask, buy_amount, MODE.BUY)
             else:
