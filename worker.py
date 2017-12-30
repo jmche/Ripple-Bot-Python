@@ -44,7 +44,7 @@ class Worker:
 
         # Start state
         if self.STATE is STATE.START and self.MODE is MODE.BUY:
-            if ask_change <= -CONFIG.MIN_PRICE_CHANGE:
+            if ask_change <= -CONFIG.MIN_PRICE_CHANGE and buy_amount > CONFIG.MIN_TRADE_AMOUNT:
                 # Create new buy order
                 self.order(self.client.best_ask, buy_amount, MODE.BUY)
             else:
@@ -54,7 +54,7 @@ class Worker:
                 if self.last_worker is not None:
                     self.last_worker.IS_ADDED = False
         elif self.STATE is STATE.START and self.MODE is MODE.SELL:
-            if bid_change >= CONFIG.MIN_PRICE_CHANGE:
+            if bid_change >= CONFIG.MIN_PRICE_CHANGE and sell_amount > CONFIG.MIN_TRADE_AMOUNT:
                 # Create new sell order
                 self.order(self.client.best_bid, sell_amount, MODE.SELL)
             else:
@@ -63,16 +63,16 @@ class Worker:
                 self.STATE = STATE.FAILURE
         # Process state
         elif self.STATE is STATE.PROCESS:
-            if ask_change <= -CONFIG.MIN_PRICE_CHANGE and sell_amount <= self.client.jpy_balance:
+            if ask_change <= -CONFIG.MIN_PRICE_CHANGE and buy_amount > CONFIG.MIN_TRADE_AMOUNT:
                 if self.IS_ADDED is False:
                     # Create new worker to handle buy order
                     print('[INFO]: Add new BUY worker in worker {:d}.'.format(worker_id))
                     worker = Worker(self.trade, self.client, self.last_ask, self.last_bid, MODE.BUY, self)
                     self.trade.workers.append(worker)
                     self.IS_ADDED = True
-            elif bid_change >= CONFIG.MIN_PRICE_CHANGE and buy_amount <= self.client.xrp_balance:
+            elif bid_change >= CONFIG.MIN_PRICE_CHANGE and sell_amount > CONFIG.MIN_TRADE_AMOUNT:
                 # Create new sell order and remove worker
-                self.order(self.client.best_bid, CONFIG.TRADE_AMOUNT, MODE.SELL)
+                self.order(self.client.best_bid, sell_amount, MODE.SELL)
         # End state
         elif self.STATE is STATE.END:
             # Remove worker and update trade manager
