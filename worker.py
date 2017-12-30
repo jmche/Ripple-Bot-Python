@@ -65,18 +65,10 @@ class Worker:
                     worker = Worker(self.trade, self.client, self.last_ask, self.last_bid, MODE.BUY, self)
                     self.trade.workers.append(worker)
                     self.IS_ADDED = True
-                else:
-                    # When no enough jpy then remove worker
-                    print('[INFO]: Remove worker because no enough jpy.')
-                    self.STATE = STATE.FAILURE
             elif is_need_to_sell:
                 if sell_amount >= CONFIG.MIN_TRADE_AMOUNT:
                     # Create new sell order and remove worker
                     self.order(self.client.best_bid, sell_amount, MODE.SELL)
-                else:
-                    # When no enough xrp then remove worker
-                    print('[INFO]: Remove worker because no enough xrp.')
-                    self.STATE = STATE.FAILURE
         # End state
         elif self.STATE is STATE.END:
             # Remove worker and update trade manager
