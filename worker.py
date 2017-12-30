@@ -1,7 +1,8 @@
 import time
-from enums import MODE, STATE
-from config import CONFIG
 from datetime import datetime
+
+from config import CONFIG
+from enums import MODE, STATE
 
 
 class Worker:
@@ -23,38 +24,32 @@ class Worker:
         self.IS_ADDED = False
 
     def execute(self, worker_id):
-        global ask_change, bid_change, buy_amount, sell_amount
-        if self.STATE is STATE.START or self.STATE is STATE.PROCESS:
-            # Calculate price change
-            ask_change = (self.client.best_ask - self.last_ask) / self.last_ask
-            bid_change = (self.client.best_bid - self.last_bid) / self.last_bid
+        # Update last info
+        self.client.update()
 
-            # Calculate usage
-            if self.client.jpy_balance >= CONFIG.TRADE_AMOUNT * self.client.xrp_value:
-                buy_amount = CONFIG.TRADE_AMOUNT
-            else:
-                buy_amount = int(self.client.jpy_balance / self.client.xrp_value)
-            if self.client.xrp_balance >= CONFIG.TRADE_AMOUNT:
-                sell_amount = CONFIG.TRADE_AMOUNT
-            else:
-                sell_amount = int(self.client.xrp_balance)
+        # Calculate price change
+        ask_change = (self.client.best_ask - self.last_ask) / self.last_ask
+        bid_change = (self.client.best_bid - self.last_bid) / self.last_bid
 
-            # Show info
-            self.show(worker_id)
+        # Trade amount and trade condition
+        is_need_to_buy = ask_change <= -CONFIG.MIN_PRICE_CHANGE
+        is_need_to_sell = bid_change >= CONFIG.MIN_PRICE_CHANGE
+        buy_amount, sell_amount = self.client.get_trade_amount()
+
+        # Show info
+        self.show(ask_change, bid_change, worker_id)
 
         # Start state
         if self.STATE is STATE.START and self.MODE is MODE.BUY:
-            if ask_change <= -CONFIG.MIN_PRICE_CHANGE and buy_amount > CONFIG.MIN_TRADE_AMOUNT:
+            if is_need_to_buy and buy_amount >= CONFIG.MIN_TRADE_AMOUNT:
                 # Create new buy order
                 self.order(self.client.best_ask, buy_amount, MODE.BUY)
             else:
                 # When price up or no enough jpy then remove worker
                 print('[INFO]: Remove worker because price up or no enough jpy.')
                 self.STATE = STATE.FAILURE
-                if self.last_worker is not None:
-                    self.last_worker.IS_ADDED = False
         elif self.STATE is STATE.START and self.MODE is MODE.SELL:
-            if bid_change >= CONFIG.MIN_PRICE_CHANGE and sell_amount > CONFIG.MIN_TRADE_AMOUNT:
+            if is_need_to_sell and sell_amount >= CONFIG.MIN_TRADE_AMOUNT:
                 # Create new sell order
                 self.order(self.client.best_bid, sell_amount, MODE.SELL)
             else:
@@ -63,8 +58,8 @@ class Worker:
                 self.STATE = STATE.FAILURE
         # Process state
         elif self.STATE is STATE.PROCESS:
-            if ask_change <= -CONFIG.MIN_PRICE_CHANGE and self.IS_ADDED is False:
-                if buy_amount > CONFIG.MIN_TRADE_AMOUNT:
+            if is_need_to_buy and self.IS_ADDED is False:
+                if buy_amount >= CONFIG.MIN_TRADE_AMOUNT:
                     # Create new worker to handle buy order
                     print('[INFO]: Add new BUY worker in worker {:d}.'.format(worker_id))
                     worker = Worker(self.trade, self.client, self.last_ask, self.last_bid, MODE.BUY, self)
@@ -74,8 +69,8 @@ class Worker:
                     # When no enough jpy then remove worker
                     print('[INFO]: Remove worker because no enough jpy.')
                     self.STATE = STATE.FAILURE
-            elif bid_change >= CONFIG.MIN_PRICE_CHANGE:
-                if sell_amount > CONFIG.MIN_TRADE_AMOUNT:
+            elif is_need_to_sell:
+                if sell_amount >= CONFIG.MIN_TRADE_AMOUNT:
                     # Create new sell order and remove worker
                     self.order(self.client.best_bid, sell_amount, MODE.SELL)
                 else:
@@ -85,11 +80,15 @@ class Worker:
         # End state
         elif self.STATE is STATE.END:
             # Remove worker and update trade manager
+            if self.last_worker is not None:
+                self.last_worker.IS_ADDED = False
             print('[INFO]: Removed worker {:d}.'.format(worker_id))
             self.trade.workers.remove(self)
             self.trade.last_ask, self.trade.last_bid = self.client.get_market_info()
         # Failure state
         elif self.STATE is STATE.FAILURE:
+            if self.last_worker is not None:
+                self.last_worker.IS_ADDED = False
             # Remove worker and update trade manager
             print('[INFO]: Removed worker {:d}.'.format(worker_id))
             self.trade.workers.remove(self)
@@ -111,6 +110,7 @@ class Worker:
 
         # Order and wait a while
         for wait_times in range(CONFIG.MAX_WAIT_TIMES + 1):
+            print('[INFO]: Waiting for trade %d times...' % (wait_times + 1))
             latest_order = self.client.get_latest_order()
             if wait_times == CONFIG.MAX_WAIT_TIMES:
                 self.IS_DONE = False
@@ -118,8 +118,6 @@ class Worker:
             elif latest_order is None:
                 self.IS_DONE = True
                 break
-            else:
-                print('[INFO]: Waiting for trade %d times...' % (wait_times + 1))
             time.sleep(1)
 
         # Update state and info
@@ -132,14 +130,12 @@ class Worker:
             print('[SOLD]: %.3f XRP with %.3f JPY.' % (amount, price))
             self.MODE = MODE.DEFAULT
             self.STATE = STATE.END
-            if self.last_worker is not None:
-                self.last_worker.IS_ADDED = False
         else:
             # Cancel all orders and update info
             print('[INFO]: Cancelled all orders.')
             self.client.cancel_all_orders()
 
-    def show(self, worker_id):
+    def show(self, ask_change, bid_change, worker_id):
         # Show price change info
         print('================= Worker[{:d}] ================='.format(worker_id))
         print('============ {} ============'.format(datetime.now().strftime('%Y-%m-%d %H:%M:%S')))

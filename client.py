@@ -1,5 +1,7 @@
 import python_bitbankcc
 
+from config import CONFIG
+
 
 class Client:
 
@@ -50,11 +52,17 @@ class Client:
         ticker = self._public_api.get_ticker(self.PAIR)
         return float(ticker['buy']), float(ticker['sell'])
 
-    def get_last_trade_info(self):
-        trades = self._private_api.get_trade_history(self.PAIR, 100)['trades']
-        last_ask = [float(trade['price']) for trade in trades if trade['side'] == 'buy'][0]
-        last_bid = [float(trade['price']) for trade in trades if trade['side'] == 'sell'][0]
-        return last_ask, last_bid
+    def get_trade_amount(self):
+        # Calculate trade amount
+        if self.jpy_balance >= CONFIG.TRADE_AMOUNT * self.xrp_value:
+            buy_amount = CONFIG.TRADE_AMOUNT
+        else:
+            buy_amount = int(self.jpy_balance / self.xrp_value)
+        if self.xrp_balance >= CONFIG.TRADE_AMOUNT:
+            sell_amount = CONFIG.TRADE_AMOUNT
+        else:
+            sell_amount = int(self.xrp_balance)
+        return buy_amount, sell_amount
 
     def get_latest_order(self):
         orders = self._private_api.get_active_orders(self.PAIR)['orders']

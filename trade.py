@@ -1,7 +1,7 @@
-from enums import MODE
-from config import CONFIG
 from datetime import datetime
 
+from config import CONFIG
+from enums import MODE
 from worker import Worker
 
 
@@ -28,26 +28,27 @@ class Trade:
             ask_change = (self.client.best_ask - self.last_ask) / self.last_ask
             bid_change = (self.client.best_bid - self.last_bid) / self.last_bid
 
-            # Calculate usage
-            xrp_usage = CONFIG.TRADE_AMOUNT
-            jpy_usage = CONFIG.TRADE_AMOUNT * self.client.xrp_value
+            # Trade amount and trade condition
+            is_ask_up = ask_change >= CONFIG.MAX_PRICE_CHANGE
+            is_need_to_buy = ask_change <= -CONFIG.MIN_PRICE_CHANGE
+            is_need_to_sell = bid_change >= CONFIG.MIN_PRICE_CHANGE
+            buy_amount, sell_amount = self.client.get_trade_amount()
 
             # Show info
             self.show(ask_change, bid_change)
 
             # Create new worker to handle order
-            if ask_change >= CONFIG.MAX_PRICE_CHANGE and self.client.xrp_balance < CONFIG.TRADE_AMOUNT:
+            if is_ask_up and self.client.xrp_balance < CONFIG.TRADE_AMOUNT:
                 # Create new worker when ask up
-                print('[INFO]: Add new BUY worker in trade manager because price up.')
+                print('[INFO]: Add new BUY worker in trade manager because no xrp to sell.')
                 worker = Worker(self, self.client, self.last_ask, self.last_bid, MODE.BUY, None)
-                worker.order(self.client.best_ask, CONFIG.TRADE_AMOUNT, MODE.BUY)
                 self.workers.append(worker)
-            elif ask_change <= -CONFIG.MIN_PRICE_CHANGE and jpy_usage <= self.client.jpy_balance:
+            elif is_need_to_buy and buy_amount >= CONFIG.MIN_TRADE_AMOUNT:
                 # Create new worker when ask down
                 print('[INFO]: Add new BUY worker in trade manager.')
                 worker = Worker(self, self.client, self.last_ask, self.last_bid, MODE.BUY, None)
                 self.workers.append(worker)
-            elif bid_change >= CONFIG.MIN_PRICE_CHANGE and xrp_usage <= self.client.xrp_balance:
+            elif is_need_to_sell and sell_amount >= CONFIG.MIN_TRADE_AMOUNT:
                 # Create new worker when bid up
                 print('[INFO]: Add new SELL worker in trade manager.')
                 worker = Worker(self, self.client, self.last_ask, self.last_bid, MODE.SELL, None)
@@ -56,9 +57,6 @@ class Trade:
             # Handle order with workers
             worker_id = 0
             for worker in self.workers:
-                # Update last info
-                self.client.update()
-
                 # Start trade
                 worker_id += 1
                 worker.execute(worker_id)
