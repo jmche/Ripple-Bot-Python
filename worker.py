@@ -109,7 +109,7 @@ class Worker:
             return
 
         # Order and wait a while
-        for wait_times in range(CONFIG.MAX_WAIT_TIMES + 1):
+        for wait_times in range(CONFIG.MAX_WAIT_TIMES):
             print('[INFO]: Waiting for trade %d times...' % (wait_times + 1))
             latest_order = self.client.get_latest_order()
             if wait_times == CONFIG.MAX_WAIT_TIMES:
