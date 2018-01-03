@@ -29,16 +29,16 @@ class Trade:
             bid_change = (self.client.best_bid - self.last_bid) / self.last_bid
 
             # Trade amount and trade condition
-            is_ask_up = ask_change >= CONFIG.MAX_PRICE_CHANGE
             is_need_to_buy = ask_change <= -CONFIG.MIN_PRICE_CHANGE
             is_need_to_sell = bid_change >= CONFIG.MIN_PRICE_CHANGE
+            is_no_xrp_to_sell = self.client.xrp_balance < CONFIG.MIN_TRADE_AMOUNT
             buy_amount, sell_amount = self.client.get_trade_amount()
 
             # Show info
             self.show(ask_change, bid_change)
 
             # Create new worker to handle order
-            if is_ask_up and self.client.xrp_balance < CONFIG.TRADE_AMOUNT:
+            if is_no_xrp_to_sell:
                 # Create new worker when ask up
                 print('[INFO]: Add new BUY worker in trade manager because no xrp to sell.')
                 worker = Worker(self, self.client, self.last_ask, self.last_bid, MODE.BUY, None)
