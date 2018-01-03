@@ -1,3 +1,6 @@
+import os
+import errno
+import pickle
 import python_bitbankcc
 
 from config import CONFIG
@@ -78,3 +81,29 @@ class Client:
             for order in orders:
                 order_ids.append(order['order_id'])
             self._private_api.cancel_orders(self.PAIR, order_ids)
+
+    @staticmethod
+    def db_save(workers):
+        # Check if db directory is exists.
+        try:
+            os.makedirs('~/.data')
+        except OSError as e:
+            if e.errno != errno.EEXIST:
+                raise
+
+        # Setting path
+        db_path = '~/.data/workers.db'
+        db = open(db_path, 'wb')
+
+        # Save worker db and save
+        pickle.dump(workers, db)
+
+    @staticmethod
+    def db_load():
+        # Load db file and return articles dict
+        db_path = '~/.data/'
+        if os.path.exists(db_path):
+            db = open(db_path + 'workers.db', 'rb')
+            return pickle.load(db)
+        else:
+            return []

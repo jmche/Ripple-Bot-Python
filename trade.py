@@ -9,7 +9,7 @@ class Trade:
 
     def __init__(self, client):
         # Workers and bitbank api client
-        self.workers = []
+        self.workers = client.db_load()
         self.client = client
 
         # Last time ask & bid price
@@ -60,6 +60,8 @@ class Trade:
                 # Start trade
                 worker_id += 1
                 worker.execute(worker_id)
+            # Save workers to db
+            self.client.db_save(self.workers)
 
     def show(self, ask_change, bid_change):
         # Show price change info
