@@ -86,13 +86,13 @@ class Client:
     def db_save(workers):
         # Check if db directory is exists.
         try:
-            os.makedirs('~/.data')
+            os.makedirs('.data')
         except OSError as e:
             if e.errno != errno.EEXIST:
                 raise
 
         # Setting path
-        db_path = '~/.data/workers.db'
+        db_path = '.data/workers.db'
         db = open(db_path, 'wb')
 
         # Save worker db and save
