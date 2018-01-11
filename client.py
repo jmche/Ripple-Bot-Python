@@ -3,7 +3,7 @@ import errno
 import pickle
 import python_bitbankcc
 
-from config import CONFIG
+from config import *
 
 
 class Client:
@@ -57,12 +57,12 @@ class Client:
 
     def get_trade_amount(self):
         # Calculate trade amount
-        if self.jpy_balance >= CONFIG.TRADE_AMOUNT * self.xrp_value:
-            buy_amount = CONFIG.TRADE_AMOUNT
+        if self.jpy_balance >= TRADE_AMOUNT * self.xrp_value:
+            buy_amount = TRADE_AMOUNT
         else:
             buy_amount = int(self.jpy_balance / self.xrp_value)
-        if self.xrp_balance >= CONFIG.TRADE_AMOUNT:
-            sell_amount = CONFIG.TRADE_AMOUNT
+        if self.xrp_balance >= TRADE_AMOUNT:
+            sell_amount = TRADE_AMOUNT
         else:
             sell_amount = int(self.xrp_balance)
         return buy_amount, sell_amount
