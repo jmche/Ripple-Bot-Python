@@ -1,7 +1,7 @@
 import time
 from datetime import datetime
 
-from config import CONFIG
+from config import *
 from enums import MODE, STATE
 
 
@@ -32,9 +32,9 @@ class Worker:
         bid_change = (self.client.best_bid - self.last_bid) / self.last_bid
 
         # Trade amount and trade condition
-        is_need_to_buy = ask_change <= -CONFIG.MIN_PRICE_CHANGE
-        is_need_to_sell = bid_change >= CONFIG.MIN_PRICE_CHANGE
-        is_no_xrp_to_sell = self.client.xrp_balance < CONFIG.MIN_TRADE_AMOUNT
+        is_need_to_buy = ask_change <= -MIN_PRICE_CHANGE
+        is_need_to_sell = bid_change >= MIN_PRICE_CHANGE
+        is_no_xrp_to_sell = self.client.xrp_balance < MIN_TRADE_AMOUNT
         buy_amount, sell_amount = self.client.get_trade_amount()
 
         # Show info
@@ -42,7 +42,7 @@ class Worker:
 
         # Start state
         if self.STATE is STATE.START and self.MODE is MODE.BUY:
-            if is_no_xrp_to_sell or (is_need_to_buy and buy_amount >= CONFIG.MIN_TRADE_AMOUNT):
+            if is_no_xrp_to_sell or (is_need_to_buy and buy_amount >= MIN_TRADE_AMOUNT):
                 # Create new buy order
                 self.order(self.client.best_ask, buy_amount, MODE.BUY)
             else:
@@ -50,7 +50,7 @@ class Worker:
                 print('[INFO]: Remove worker because price up or no enough jpy.')
                 self.STATE = STATE.FAILURE
         elif self.STATE is STATE.START and self.MODE is MODE.SELL:
-            if is_need_to_sell and sell_amount >= CONFIG.MIN_TRADE_AMOUNT:
+            if is_need_to_sell and sell_amount >= MIN_TRADE_AMOUNT:
                 # Create new sell order
                 self.order(self.client.best_bid, sell_amount, MODE.SELL)
             else:
@@ -60,14 +60,14 @@ class Worker:
         # Process state
         elif self.STATE is STATE.PROCESS:
             if is_need_to_buy and self.IS_ADDED is False:
-                if buy_amount >= CONFIG.MIN_TRADE_AMOUNT:
+                if buy_amount >= MIN_TRADE_AMOUNT:
                     # Create new worker to handle buy order
                     print('[INFO]: Add new BUY worker in worker {:d}.'.format(worker_id))
                     worker = Worker(self.trade, self.client, self.last_ask, self.last_bid, MODE.BUY, self)
                     self.trade.workers.append(worker)
                     self.IS_ADDED = True
             elif is_need_to_sell:
-                if sell_amount >= CONFIG.MIN_TRADE_AMOUNT:
+                if sell_amount >= MIN_TRADE_AMOUNT:
                     # Create new sell order and remove worker
                     self.order(self.client.best_bid, sell_amount, MODE.SELL)
         # End state
@@ -102,10 +102,10 @@ class Worker:
             return
 
         # Order and wait a while
-        for wait_times in range(CONFIG.MAX_WAIT_TIMES):
+        for wait_times in range(MAX_WAIT_TIMES):
             print('[INFO]: Waiting for trade %d times...' % (wait_times + 1))
             latest_order = self.client.get_latest_order()
-            if wait_times == CONFIG.MAX_WAIT_TIMES:
+            if wait_times == MAX_WAIT_TIMES:
                 self.IS_DONE = False
                 break
             elif latest_order is None:

@@ -101,9 +101,9 @@ class Client:
     @staticmethod
     def db_load():
         # Load db file and return articles dict
-        db_path = '~/.data/'
+        db_path = '.data/workers.db'
         if os.path.exists(db_path):
-            db = open(db_path + 'workers.db', 'rb')
+            db = open(db_path, 'rb')
             return pickle.load(db)
         else:
             return []
