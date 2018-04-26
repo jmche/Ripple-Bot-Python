@@ -30,7 +30,7 @@ class Trade:
 
             # Trade amount and trade condition
             is_need_to_buy = ask_change <= -MIN_PRICE_CHANGE
-            is_need_to_sell = bid_change >= MIN_PRICE_CHANGE
+            is_need_to_sell = bid_change >= MIN_PRICE_CHANGE or bid_change <= -2 * MIN_PRICE_CHANGE
             is_no_xrp_to_sell = self.client.xrp_balance < MIN_TRADE_AMOUNT
             buy_amount, sell_amount = self.client.get_trade_amount()
 
